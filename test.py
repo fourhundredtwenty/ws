@@ -10,8 +10,9 @@ from matplotlib import pyplot as plt
 
 import tensorflow as tf
 
+
 def load_data():
-    fp = open("simpler_signal", "rb")
+    fp = open("info.log.small", "rb")
     log_data = fp.read()
     fp.close()
 
@@ -20,18 +21,12 @@ def load_data():
 
 
 def dothething(i, k):
-    i = tf.constant(i, dtype=tf.float32, name="i")
-    k = tf.constant(k, dtype=tf.float32, name="k")
-
-    dc_offset = tf.math.reduce_mean(i)
-
-    i = tf.subtract(i, dc_offset)
-    k = tf.subtract(k, dc_offset)
+    i = tf.constant(i, dtype=tf.float16, name="i")
+    k = tf.constant(k, dtype=tf.float16, name="k")
 
     data = tf.reshape(i, [1, int(i.shape[0]), 1], name="data")
     kernel = tf.reshape(k, [int(k.shape[0]), 1, 1], name="kernel")
 
-    # not actually the activated res, why do I suck
     res = tf.squeeze(tf.nn.conv1d(data, kernel, 1, "SAME"))
     res_max = tf.math.reduce_max(res)
     res_min = tf.math.reduce_min(res)
@@ -40,42 +35,35 @@ def dothething(i, k):
 
     with tf.Session() as sess:
         result, activated_res = sess.run([res, activated_res])
-        res_max, res_min, dc_offset = sess.run([res_max, res_min, dc_offset])
+        res_max, res_min = sess.run([res_max, res_min])
+        i = sess.run(i)
+        print(res_max, res_min)
 
         plt.plot(result)
+        plt.plot(i)
         plt.ylabel("some numbers")
         plt.savefig(f"graphs/{time.time()}.png")
 
 
-def hipass_filter(raw_vector):
-    kernel = [0.25, 0.25, 0.25, 0.25]
-
-    raw_tensor = tf.constant(raw_vector, dtype=tf.float32, name="i")
-    filter_tensor = tf.constant(kernel, dtype=tf.float32, name="k")
-
-    data = tf.reshape(raw_tensor, [1, int(raw_tensor.shape[0]), 1], name="data")
-    kernel = tf.reshape(filter_tensor, [int(filter_tensor.shape[0]), 1, 1], name="kernel")
-
-    res = tf.squeeze(tf.nn.conv1d(data, kernel, 1, "SAME"))
+def remove_dc_offset(raw_vector):
+    raw_tensor = tf.constant(raw_vector, dtype=tf.float16)
+    signal_mean = tf.reduce_mean(raw_tensor)
+    centered_signal = raw_tensor - signal_mean
 
     with tf.Session() as sess:
-        result = sess.run(res)
+        return sess.run(centered_signal)
 
-    return result
 
-def numpy_dothething():
-    dc_offset = np.mean(vectorized_data)
-    vectorized_data = vectorized_data - dc_offset
-    filter_signal = filter_signal - dc_offset
+def divide_variance(raw_vector):
+    pass
 
-    vectorized_data = [0] + vectorized_data + [0]
-    filter_signal = [0] + filter_signal + [0]
 
-    convolved = scipy.signal.convolve(vectorized_data, filter_signal, mode="same")
-
-    plt.plot(convolved)
-    plt.ylabel("some numbers")
-    plt.savefig(f"graphs/scipy-{time.time()}.png")
+def prepare_vector(raw_vector):
+    raw_tensor = tf.constant(raw_vector, dtype=tf.float16)
+    mean, variance = tf.nn.moments(raw_tensor, axes=[0])
+    prepared_tensor = tf.nn.batch_normalization(raw_tensor, mean, variance, offset=None, scale=None, variance_epsilon=.01)
+    with tf.Session() as sess:
+        return sess.run(prepared_tensor)
 
 
 if __name__ == "__main__":
@@ -83,7 +71,12 @@ if __name__ == "__main__":
     tokenizer = Tokenizer(filters=None, char_level=True)
     tokenizer.fit_on_texts([raw_data])
 
-    vectorized_data, filter_signal = tokenizer.texts_to_sequences([raw_data, "error"])
+    filter_string = 'Eurl2IgZokV-pfFZkfOAZw4HCA67'
 
-    centered_data = hipass_filter(vectorized_data)
-    raw_data = dothething(centered_data, filter_signal)
+    vectorized_data, filter_signal = tokenizer.texts_to_sequences(
+        [raw_data, filter_string]
+    )
+    prepared_tensor = prepare_vector(vectorized_data)
+    prepared_filter = prepare_vector(filter_signal)
+
+    raw_data = dothething(prepared_tensor, prepared_filter)
