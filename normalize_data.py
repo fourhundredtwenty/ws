@@ -16,19 +16,23 @@ run_id = petname.generate()
 print(run_id)
 
 def save_prepared_tensor(tensor):
-    save_to_path = f"runs/{run_id}/normalized.npy"
-    os.mkdir(os.path.dirname(save_to_path))
+    save_to_path = f"runs/{run_id}/normalized-{time.time()}.npy"
+
+    run_dir = os.path.dirname(save_to_path)
+    if not os.path.exists(run_dir):
+        os.mkdir(run_dir)
+
     numpy.save(save_to_path, tensor)
 
 def prepare_vector(raw_vector):
-    raw_tensor = tf.convert_to_tensor(raw_vector)
+    raw_tensor = tf.convert_to_tensor(value=raw_vector)
     prepared_tensor = tf.Variable(0)
 
     variance_epsilon = tf.constant(0.1)
 
-    mean, variance = tf.nn.moments(raw_tensor, axes=[0])
+    mean, variance = tf.nn.moments(x=raw_tensor, axes=[0])
 
-    normalizer = tf.nn.batch_normalization(
+    prepared_tensor = tf.nn.batch_normalization(
         raw_tensor,
         mean,
         variance,
@@ -36,9 +40,6 @@ def prepare_vector(raw_vector):
         scale=None,
         variance_epsilon=variance_epsilon,
     )
-
-    with tf.Session() as sess:
-        prepared_tensor = sess.run(normalizer)
 
     return prepared_tensor
 
@@ -48,7 +49,7 @@ if __name__ == "__main__":
 
     # LOAD
     before = time.time()
-    with open("tests/fixtures/words_lower.txt", "rb") as fp:
+    with open("info.log.large", "rb") as fp:
         numpy_arr_of_letters = numpy.array(list(fp.read()), dtype=numpy.float32)
 
     # plot_vector(numpy_arr_of_letters)
@@ -59,13 +60,18 @@ if __name__ == "__main__":
     graphyte.send(f"tf.{run_id}.prep.count_len", time.time() - before)
     graphyte.send(f"tf.{run_id}.prep.dataset_size", dataset_size)
 
-    before = time.time()
-    prepared_tensor = prepare_vector(numpy_arr_of_letters)
-    graphyte.send(f"tf.{run_id}.prep.normalize", time.time() - before)
+    chunked_dataset = numpy.array_split(numpy_arr_of_letters, 3)
+    results = []
+    for chunk in chunked_dataset:
+        print("processing new chunk")
+        before = time.time()
+        prepared_tensor = prepare_vector(chunk)
+        graphyte.send(f"tf.{run_id}.prep.normalize", time.time() - before)
 
-    before = time.time()
-    save_prepared_tensor(prepared_tensor)
-    graphyte.send(f"tf.{run_id}.prep.write", time.time() - before)
+        before = time.time()
+        save_prepared_tensor(prepared_tensor)
+        graphyte.send(f"tf.{run_id}.prep.write", time.time() - before)
+
 
     graphyte.send(f"tf.{run_id}.prep.total", time.time() - hyper_before)
 
