@@ -1,6 +1,9 @@
 tensorflow # for obvious reasons
 petname    # for readability of unique IDs in general
 click      # command line arg parsing but pretty
+graphyte   # for metrics
+gnuplotlib # ascii graphs
+pyfiglet   # big dumb ascii text to alert users (me and you)
 
 # editor garbage, I'm sorry everyone
 neovim
