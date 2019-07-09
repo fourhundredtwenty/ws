@@ -9,10 +9,11 @@ from keras.preprocessing.text import Tokenizer
 from matplotlib import pyplot as plt
 
 import tensorflow as tf
+import tensorflow_transform as tft
 
 
 def load_data():
-    fp = open("info.log.small", "rb")
+    fp = open("info.log.smaller", "rb")
     log_data = fp.read()
     fp.close()
 
@@ -21,9 +22,6 @@ def load_data():
 
 
 def dothething(i, k):
-    i = tf.constant(i, dtype=tf.float16, name="i")
-    k = tf.constant(k, dtype=tf.float16, name="k")
-
     data = tf.reshape(i, [1, int(i.shape[0]), 1], name="data")
     kernel = tf.reshape(k, [int(k.shape[0]), 1, 1], name="kernel")
 
@@ -59,11 +57,10 @@ def divide_variance(raw_vector):
 
 
 def prepare_vector(raw_vector):
-    raw_tensor = tf.constant(raw_vector, dtype=tf.float16)
-    mean, variance = tf.nn.moments(raw_tensor, axes=[0])
-    prepared_tensor = tf.nn.batch_normalization(raw_tensor, mean, variance, offset=None, scale=None, variance_epsilon=.01)
-    with tf.Session() as sess:
-        return sess.run(prepared_tensor)
+    raw_tensor = tf.constant(raw_vector, dtype=tf.float32)
+    scaled_tensor = tft.scale_to_z_score(raw_tensor)
+
+    return scaled_tensor
 
 
 if __name__ == "__main__":
@@ -76,6 +73,7 @@ if __name__ == "__main__":
     vectorized_data, filter_signal = tokenizer.texts_to_sequences(
         [raw_data, filter_string]
     )
+
     prepared_tensor = prepare_vector(vectorized_data)
     prepared_filter = prepare_vector(filter_signal)
 
