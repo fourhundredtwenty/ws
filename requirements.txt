@@ -1,0 +1,7 @@
+tensorflow # for obvious reasons
+petname    # for readability of unique IDs in general
+click      # command line arg parsing but pretty
+
+# editor garbage, I'm sorry everyone
+neovim
+jedi
