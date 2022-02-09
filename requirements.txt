@@ -1,4 +1,4 @@
-tensorflow-gpu==2.0.0b1 # for obvious reasons
+tensorflow-gpu==2.5.3 # for obvious reasons
 petname    # for readability of unique IDs in general
 click      # command line arg parsing but pretty
 graphyte   # for metrics
